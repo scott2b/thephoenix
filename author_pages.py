@@ -102,7 +102,7 @@ def _fetch_articles(city, links):
         href = link.get('href')
         if not href.startswith('http:'):
             href = prepend_link(city, href)
-        print json.dumps(fetch_author_page(city, href))
+        yield json.dumps(fetch_author_page(city, href))
 
 
 def fetch_author_articles(city, author, url=None):
@@ -116,7 +116,8 @@ def fetch_author_articles(city, author, url=None):
     links = doc.cssselect('div#ArticleList h3 a')
     index_links_div = doc.cssselect('div#ArticleList')[0].getparent().getnext()
     next_page = next_page_link(index_links_div.cssselect('a'))
-    _fetch_articles(city, links)
+    for article in _fetch_articles(city, links):
+        yield article
     if next_page is not None:
         href = prepend_link(city, next_page.get('href'))
         logging.info('Fetching next index page: %s' % href)
@@ -134,4 +135,5 @@ if __name__=="__main__":
     else:
         city = sys.argv[1].lower()
         author = sys.argv[2]
-    fetch_author_articles(city, author) 
+    for article in fetch_author_articles(city, author):
+        print article
