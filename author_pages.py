@@ -97,19 +97,30 @@ def fetch_author_page(city, url, first=True):
     }
     
 
-def fetch_author_articles(city, author):
-    url = AUTHOR_URL % {
-        'site_root': SITE_ROOTS[city],
-        'author_slug': author
-    }
-    page = fetch(url)
-    doc = lxml.html.fromstring(page)
-    links = doc.cssselect('div#ArticleList h3 a')
+def _fetch_articles(city, links):
     for link in links:
         href = link.get('href')
         if not href.startswith('http:'):
             href = prepend_link(city, href)
         print json.dumps(fetch_author_page(city, href))
+
+
+def fetch_author_articles(city, author, url=None):
+    if url is None:
+        url = AUTHOR_URL % {
+            'site_root': SITE_ROOTS[city],
+            'author_slug': author
+        }
+    page = fetch(url)
+    doc = lxml.html.fromstring(page)
+    links = doc.cssselect('div#ArticleList h3 a')
+    index_links_div = doc.cssselect('div#ArticleList')[0].getparent().getnext()
+    next_page = next_page_link(index_links_div.cssselect('a'))
+    _fetch_articles(city, links)
+    if next_page is not None:
+        href = prepend_link(city, next_page.get('href'))
+        logging.info('Fetching next index page: %s' % href)
+        fetch_author_articles(city, author, href)
 
 
 if __name__=="__main__":
