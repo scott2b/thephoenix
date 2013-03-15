@@ -9,12 +9,19 @@ There might be a better way: word is that there is a private API.
 
 Usage:
 python author_pages.py [city] author-slug
+
+Prints out each article as a JSON structure. Tail author_pages.log to see
+script progress.
 """
 import datetime
+import logging
+import json
 import sys
 import time
 import urllib2
 import lxml.html
+
+logging.basicConfig(filename='author_pages.log', level=logging.INFO)
 
 SITE_ROOTS = {
     'boston': 'http://thephoenix.com/boston',
@@ -37,10 +44,10 @@ def fetch(url):
     global last_fetch
     delta = _wait()
     if delta > 0: 
-        print 'waiting: %s seconds' % delta
+        logging.info('waiting: %s seconds' % delta)
         time.sleep(delta)
     last_fetch = datetime.datetime.now()
-    print 'fetching:', url
+    logging.info('fetching: %s' % url)
     return urllib2.urlopen(url).read()
 
 
@@ -57,14 +64,30 @@ def next_page_link(links):
             return link
 
 
-def fetch_author_page(city, url):
+def fetch_author_page(city, url, first=True):
     page = fetch(url)
     doc = lxml.html.fromstring(page)
+    title = None
+    author = None
+    pubdate = None
+    if first:
+        title = doc.cssselect('div#articlecontent h1')[0].text_content()
+        author_span = doc.cssselect('div#articlecontent span.author')[0]
+        author = author_span.cssselect('a strong')[0].text_content()
+        pubdate = author_span.text_content().split('|')[-1].strip()
     article = doc.cssselect('div#articlecontent .bodyText')
-    print '\n\n'.join([e.text_content() for e in article])
+    content = [e.text_content() for e in article]
     next_page = next_page_link(doc.cssselect('div#articlecontent a'))
     if next_page is not None:
-        fetch_author_page(city, prepend_link(city, next_page.get('href')))
+        next_pages = fetch_author_page(city, prepend_link(city,
+            next_page.get('href')), first=False)
+        content += next_pages['content']
+    return {
+        'title': title,
+        'author': author,
+        'pubdate': pubdate,
+        'content': content
+    }
     
 
 def fetch_author_articles(city, author):
@@ -79,7 +102,7 @@ def fetch_author_articles(city, author):
         href = link.get('href')
         if not href.startswith('http:'):
             href = prepend_link(city, href)
-        fetch_author_page(city, href)
+        print json.dumps(fetch_author_page(city, href))
 
 
 if __name__=="__main__":
