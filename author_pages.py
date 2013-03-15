@@ -71,6 +71,7 @@ def fetch_author_page(city, url, first=True):
     author = None
     pubdate = None
     teaser = None
+    topics = None
     if first:
         article = doc.cssselect('div#articlecontent')[0]
         title = article.cssselect('h1')[0].text_content()
@@ -78,6 +79,7 @@ def fetch_author_page(city, url, first=True):
         author = author_span.cssselect('a strong')[0].text_content()
         pubdate = author_span.text_content().split('|')[-1].strip()
         teaser = article.cssselect('div.teaser')[0].text_content()
+        topics = [t.text_content() for t in article.cssselect('a[rel="TOPIC"]')]
     article = doc.cssselect('div#articlecontent .bodyText')
     content = [e.text_content() for e in article]
     next_page = next_page_link(doc.cssselect('div#articlecontent a'))
@@ -90,6 +92,7 @@ def fetch_author_page(city, url, first=True):
         'author': author,
         'pubdate': pubdate,
         'teaser': teaser,
+        'topics': topics,
         'content': content
     }
     
